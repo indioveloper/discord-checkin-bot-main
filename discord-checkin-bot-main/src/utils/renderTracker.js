@@ -6,16 +6,19 @@ try {
 }
 const { DateTime } = require('luxon');
 
-// ── Colour palette (one slot per member, assigned in registration order) ──
+// ── Colour palette — matches the mockup sketch colours ──────────────────────
+// Cycles: yellow × 2 → pink → blue × 3 → green → purple × 2 → beige → repeat
 const PALETTE = [
-  { bg: '#F9E49A', text: '#5A4000' }, // gold
-  { bg: '#FFCCD0', text: '#8B1020' }, // rose
-  { bg: '#A8CCF8', text: '#1A3A8A' }, // sky blue
-  { bg: '#B8EAA8', text: '#1A5A10' }, // mint
-  { bg: '#D4C0F4', text: '#3A1A8A' }, // lavender
-  { bg: '#E0D0BC', text: '#5A3820' }, // tan
-  { bg: '#FCE0A0', text: '#7A4000' }, // amber
-  { bg: '#C0E8E8', text: '#1A5A5A' }, // teal
+  { bg: '#F9E49A', text: '#5A4000' }, // yellow
+  { bg: '#F9E49A', text: '#5A4000' }, // yellow
+  { bg: '#F4B8BE', text: '#8B1020' }, // pink
+  { bg: '#A8CCF8', text: '#1A3A8A' }, // blue
+  { bg: '#A8CCF8', text: '#1A3A8A' }, // blue
+  { bg: '#A8CCF8', text: '#1A3A8A' }, // blue
+  { bg: '#B8EAA8', text: '#1A5A10' }, // green
+  { bg: '#C8B8EC', text: '#3A1A8A' }, // purple
+  { bg: '#C8B8EC', text: '#3A1A8A' }, // purple
+  { bg: '#D8C8B4', text: '#5A3820' }, // beige
 ];
 
 function col(idx) {
@@ -221,14 +224,29 @@ function renderTracker({ activeUsers = [], allMembers = [], timezone = 'UTC', ti
   }
   ctx.restore();
 
-  // ── Offline members ──
+  // ── Offline panel: all members in registration order ──────────────────────
+  // Online members leave a dashed empty slot so positions are preserved.
   const activeIds = new Set(activeUsers.map(u => u.userId));
-  const offline   = allMembers.filter(m => !activeIds.has(m.userId));
   let oY = CNT_Y;
-  for (const m of offline) {
+  for (const m of allMembers) {
     if (oY + PILL_H > H - PAD) break;
-    const c = col(m.colorIndex);
-    pill(ctx, PAD, oY, LEFT_W, PILL_H, m.username, c.bg, c.text, 0.55);
+    if (activeIds.has(m.userId)) {
+      // Empty gap: dashed outline, colour-tinted background
+      const c = col(m.colorIndex);
+      rr(ctx, PAD, oY, LEFT_W, PILL_H, PILL_H / 2);
+      ctx.fillStyle = c.bg + '28'; // ~16 % opacity tint
+      ctx.fill();
+      ctx.save();
+      ctx.setLineDash([5, 5]);
+      ctx.strokeStyle = c.bg;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      // Normal offline pill (slightly dimmed)
+      const c = col(m.colorIndex);
+      pill(ctx, PAD, oY, LEFT_W, PILL_H, m.username, c.bg, c.text, 0.60);
+    }
     oY += ROW_H;
   }
 
