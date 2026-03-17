@@ -1,0 +1,5 @@
+## PENDING — next session
+1. Invite bot to server using this URL:
+   https://discord.com/oauth2/authorize?client_id=1481412911149744161&permissions=2048&scope=bot+applications.commands
+2. Run `node deploy-commands.js` locally (once) to register the 4 slash commands
+3. Deploy to Railway: push repo, add the 3 env vars in Railway dashboard, done
