@@ -176,9 +176,8 @@ async function saveSession(interaction, utcIso, project, opts = {}) {
   });
   registerMember(interaction.user.id, displayName);
 
-  const timezone  = getTimezone(interaction.user.id);
-  const localTime = formatInZone(utcIso, timezone);
-  const msg = `✅ **${displayName}** está en línea hasta las **${localTime}** trabajando en **"${project}"**`;
+  const unixTs = Math.floor(new Date(utcIso).getTime() / 1000);
+  const msg = `✅ **${displayName}** está en línea hasta las <t:${unixTs}:t> trabajando en **"${project}"**`;
 
   if (opts.fromModal) {
     await interaction.reply({ content: msg });

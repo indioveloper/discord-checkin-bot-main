@@ -1,6 +1,5 @@
 const { getUsers, removeUser } = require('../utils/storage');
-const { isExpired, formatInZone } = require('../utils/timeUtils');
-const { getTimezone } = require('../utils/storage');
+const { isExpired } = require('../utils/timeUtils');
 
 const CHECK_INTERVAL_MS = 60 * 1000; // every 60 seconds
 
@@ -24,11 +23,10 @@ function startExpiryChecker(client) {
         const channel = await client.channels.fetch(userData.channelId);
         if (!channel || !channel.isTextBased()) continue;
 
-        const timezone = getTimezone(userId);
-        const localTime = formatInZone(userData.until, timezone);
+        const unixTs = Math.floor(new Date(userData.until).getTime() / 1000);
 
         await channel.send(
-          `⏰ **${userData.username}** ha salido del equipo (tiempo estimado de **${localTime}** alcanzado).`
+          `⏰ **${userData.username}** ha salido del equipo (tiempo estimado de <t:${unixTs}:t> alcanzado).`
         );
       } catch (err) {
         console.error(`Failed to notify expiry for user ${userData.username}:`, err.message);
