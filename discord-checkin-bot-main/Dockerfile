@@ -1,9 +1,11 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /app
 
-# Fonts required by @napi-rs/canvas on Alpine
-RUN apk add --no-cache fontconfig ttf-freefont
+# Fonts required by @napi-rs/canvas
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends fontconfig fonts-freefont-ttf && \
+    rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
 COPY package*.json ./
