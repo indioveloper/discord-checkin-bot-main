@@ -6,19 +6,21 @@ try {
 }
 const { DateTime } = require('luxon');
 
-// ── Colour palette — matches the mockup sketch colours ──────────────────────
-// Cycles: yellow × 2 → pink → blue × 3 → green → purple × 2 → beige → repeat
+// ── Colour palette — fixed 9 slots matching the team roster ─────────────────
+// 0 Owel   → yellow   4 Kappy  → blue
+// 1 Nerwi  → yellow   5 Bash   → green
+// 2 Tata   → blue     6 Numpi  → purple
+// 3 Thot   → blue     7 Bones  → purple   8 Raynor → brown
 const PALETTE = [
-  { bg: '#F9E49A', text: '#5A4000' }, // yellow
-  { bg: '#F9E49A', text: '#5A4000' }, // yellow
-  { bg: '#F4B8BE', text: '#8B1020' }, // pink
-  { bg: '#A8CCF8', text: '#1A3A8A' }, // blue
-  { bg: '#A8CCF8', text: '#1A3A8A' }, // blue
-  { bg: '#A8CCF8', text: '#1A3A8A' }, // blue
-  { bg: '#B8EAA8', text: '#1A5A10' }, // green
-  { bg: '#C8B8EC', text: '#3A1A8A' }, // purple
-  { bg: '#C8B8EC', text: '#3A1A8A' }, // purple
-  { bg: '#D8C8B4', text: '#5A3820' }, // beige
+  { bg: '#F9E49A', text: '#5A4000' }, // 0 yellow  (Owel)
+  { bg: '#F9E49A', text: '#5A4000' }, // 1 yellow  (Nerwi)
+  { bg: '#A8CCF8', text: '#1A3A8A' }, // 2 blue    (Tata)
+  { bg: '#A8CCF8', text: '#1A3A8A' }, // 3 blue    (Thot)
+  { bg: '#A8CCF8', text: '#1A3A8A' }, // 4 blue    (Kappy)
+  { bg: '#B8EAA8', text: '#1A5A10' }, // 5 green   (Bash)
+  { bg: '#C8B8EC', text: '#3A1A8A' }, // 6 purple  (Numpi)
+  { bg: '#C8B8EC', text: '#3A1A8A' }, // 7 purple  (Bones)
+  { bg: '#D4B896', text: '#5A3010' }, // 8 brown   (Raynor)
 ];
 
 function col(idx) {
@@ -101,7 +103,7 @@ function diamond(ctx, cx, cy, size, bgColor) {
  * @param {string}   opts.title        – tracker title shown at top
  * @returns {Buffer}  PNG image buffer
  */
-function renderTracker({ activeUsers = [], allMembers = [], timezone = 'UTC', title = 'Dev Tracker' }) {
+function renderTracker({ activeUsers = [], rosterMembers = [], timezone = 'UTC', title = 'Dev Tracker' }) {
   if (!createCanvas) throw new Error('@napi-rs/canvas no está disponible en este entorno');
   const W = 1280, H = 720;
   const canvas = createCanvas(W, H);
@@ -155,7 +157,7 @@ function renderTracker({ activeUsers = [], allMembers = [], timezone = 'UTC', ti
 
   // ── Stats box ──
   const activeCt = activeUsers.length;
-  const totalCt  = Math.max(allMembers.length, activeCt);
+  const totalCt  = Math.max(rosterMembers.length, activeCt);
 
   let peakCt = 0, peakLabel = '—';
   tlHours.forEach(h => {
@@ -224,28 +226,26 @@ function renderTracker({ activeUsers = [], allMembers = [], timezone = 'UTC', ti
   }
   ctx.restore();
 
-  // ── Offline panel: all members in registration order ──────────────────────
-  // Online members leave a dashed empty slot so positions are preserved.
-  const activeIds = new Set(activeUsers.map(u => u.userId));
+  // ── Offline panel — fixed roster order ──────────────────────────────────
+  // activeUser present → dashed gap (member went online)
+  // activeUser absent  → coloured pill (member offline)
   let oY = CNT_Y;
-  for (const m of allMembers) {
+  for (const m of rosterMembers) {
     if (oY + PILL_H > H - PAD) break;
-    if (activeIds.has(m.userId)) {
-      // Empty gap: dashed outline, colour-tinted background
-      const c = col(m.colorIndex);
+    const c = col(m.colorIndex);
+    if (m.activeUser) {
+      // Desaturated dashed gap
       rr(ctx, PAD, oY, LEFT_W, PILL_H, PILL_H / 2);
-      ctx.fillStyle = c.bg + '28'; // ~16 % opacity tint
+      ctx.fillStyle = c.bg + '30';
       ctx.fill();
       ctx.save();
       ctx.setLineDash([5, 5]);
-      ctx.strokeStyle = c.bg;
+      ctx.strokeStyle = c.bg + 'AA';
       ctx.lineWidth = 1.5;
       ctx.stroke();
       ctx.restore();
     } else {
-      // Normal offline pill (slightly dimmed)
-      const c = col(m.colorIndex);
-      pill(ctx, PAD, oY, LEFT_W, PILL_H, m.username, c.bg, c.text, 0.60);
+      pill(ctx, PAD, oY, LEFT_W, PILL_H, m.name, c.bg, c.text, 0.65);
     }
     oY += ROW_H;
   }

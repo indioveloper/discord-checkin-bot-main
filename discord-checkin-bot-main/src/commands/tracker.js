@@ -1,5 +1,5 @@
 const { SlashCommandBuilder, AttachmentBuilder } = require('discord.js');
-const { getUsers, getMembers, getTimezone } = require('../utils/storage');
+const { getUsers, getRoster, getTimezone } = require('../utils/storage');
 const { isExpired } = require('../utils/timeUtils');
 const { renderTracker } = require('../utils/renderTracker');
 
@@ -13,23 +13,27 @@ module.exports = {
 
     const timezone   = getTimezone(interaction.user.id);
     const usersRaw   = getUsers();
-    const membersRaw = getMembers();
+    const roster     = getRoster(); // fixed ordered list [{name, colorIndex}]
 
-    // Filter out already-expired sessions (expiry checker may not have run yet)
-    const activeRaw = Object.values(usersRaw).filter(u => !isExpired(u.until));
+    // Filter expired sessions
+    const activeUsers = Object.values(usersRaw).filter(u => !isExpired(u.until));
 
-    // Build a colorIndex lookup from the member registry
-    const memberArr      = Object.values(membersRaw);
-    const colorByUserId  = Object.fromEntries(memberArr.map(m => [m.userId, m.colorIndex ?? 0]));
-
-    // Merge colorIndex into each active user record
-    const activeUsers = activeRaw.map(u => ({
-      ...u,
-      colorIndex: colorByUserId[u.userId] ?? 0,
+    // Annotate each roster member with their active session (matched by name)
+    const rosterMembers = roster.map(r => ({
+      ...r,
+      activeUser: activeUsers.find(u =>
+        u.username.toLowerCase().includes(r.name.toLowerCase())
+      ) || null,
     }));
 
+    // For active users, resolve colorIndex from the roster match
+    const activeWithColor = activeUsers.map(u => {
+      const match = roster.find(r => u.username.toLowerCase().includes(r.name.toLowerCase()));
+      return { ...u, colorIndex: match ? match.colorIndex : 0 };
+    });
+
     const title  = `${interaction.guild?.name ?? 'Dev'} Tracker`;
-    const buffer = renderTracker({ activeUsers, allMembers: memberArr, timezone, title });
+    const buffer = renderTracker({ activeUsers: activeWithColor, rosterMembers, timezone, title });
 
     const attachment = new AttachmentBuilder(buffer, { name: 'tracker.png' });
     await interaction.editReply({ files: [attachment] });

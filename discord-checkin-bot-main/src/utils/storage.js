@@ -1,9 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const USERS_PATH    = path.join(__dirname, '../../data/users.json');
+const USERS_PATH     = path.join(__dirname, '../../data/users.json');
 const TIMEZONES_PATH = path.join(__dirname, '../../data/timezones.json');
-const MEMBERS_PATH  = path.join(__dirname, '../../data/members.json');
+const MEMBERS_PATH   = path.join(__dirname, '../../data/members.json');
+const ROSTER_PATH    = path.join(__dirname, '../../data/roster.json');
 
 function readJSON(filePath) {
   try {
@@ -75,4 +76,38 @@ function registerMember(userId, username) {
   return members[userId];
 }
 
-module.exports = { getUsers, saveUsers, getUser, setUser, removeUser, getTimezone, getMembers, registerMember };
+/**
+ * Admin: adds or repositions a member in the roster.
+ * If the member already exists they are removed first, then re-appended
+ * at the end so the admin can rebuild the order intentionally.
+ */
+function addMemberToRoster(userId, username) {
+  const members = getMembers();
+  delete members[userId]; // remove existing entry to allow re-ordering
+  const colorIndex = Object.keys(members).length;
+  members[userId] = { userId, username, colorIndex };
+  writeJSON(MEMBERS_PATH, members);
+  return members[userId];
+}
+
+/** Admin: wipes the entire roster (session data is untouched). */
+function resetMembers() {
+  writeJSON(MEMBERS_PATH, {});
+}
+
+/** Returns the fixed team roster from data/roster.json. */
+function getRoster() {
+  try {
+    const content = fs.readFileSync(ROSTER_PATH, 'utf8');
+    return JSON.parse(content);
+  } catch {
+    return [];
+  }
+}
+
+module.exports = {
+  getUsers, saveUsers, getUser, setUser, removeUser,
+  getTimezone,
+  getMembers, registerMember, addMemberToRoster, resetMembers,
+  getRoster,
+};

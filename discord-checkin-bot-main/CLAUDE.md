@@ -74,6 +74,10 @@ npm run deploy     # Registra slash commands en Discord (ejecutar una sola vez p
 - Ejecutar `node deploy-commands.js` una vez para registrar los 4 slash commands.
 - Desplegar en Railway: push del repo + configurar las 3 variables de entorno en el dashboard.
 
+## Reglas de colaboración
+
+- **No crear comandos de Discord nuevos sin consultarlo primero.** Antes de implementar una solución que implique un comando nuevo, presentar la propuesta y recoger feedback.
+
 ## Notas de desarrollo
 
 - `data/users.json` está en `.gitignore` — es estado en tiempo de ejecución, no se versiona.
