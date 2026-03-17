@@ -18,6 +18,10 @@ async function interactionHandler(interaction, client) {
     if (interaction.isButton()) {
       if (interaction.customId.startsWith('login_time_')) {
         await loginCommand.handleTimeButton(interaction);
+      } else if (interaction.customId.startsWith('login_proj_')) {
+        await loginCommand.handleProjectButton(interaction);
+      } else if (interaction.customId.startsWith('login_newproject_')) {
+        await loginCommand.handleNewProjectButton(interaction);
       }
       return;
     }
