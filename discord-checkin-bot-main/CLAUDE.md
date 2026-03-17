@@ -78,7 +78,8 @@ La coincidencia entre sesión activa y roster se hace por nombre (contains, case
 
 ## Gestión de zonas horarias
 
-- Las zonas se leen de `data/timezones.json` (mapa `userId → IANA timezone`).
+- Los mensajes públicos de login y expiración usan el formato de timestamp de Discord (`<t:UNIX:t>`), que cada usuario ve convertido a su propia zona horaria automáticamente.
+- `data/timezones.json` (mapa `userId → IANA timezone`) ya solo se usa internamente para los botones de selección de hora (mostrar horas en la zona local del usuario que ejecuta el comando).
 - Si un usuario no tiene zona configurada, se usa la clave `"default"` del JSON, o `"UTC"` como fallback.
 - Para añadir o cambiar la zona de un usuario, editar `data/timezones.json` manualmente.
 
