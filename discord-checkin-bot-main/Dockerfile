@@ -3,7 +3,7 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Fonts required by @napi-rs/canvas on Alpine
-RUN apk add --no-cache fontconfig font-opensans
+RUN apk add --no-cache fontconfig ttf-freefont
 
 # Install dependencies
 COPY package*.json ./

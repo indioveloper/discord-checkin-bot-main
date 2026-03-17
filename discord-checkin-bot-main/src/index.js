@@ -24,10 +24,14 @@ const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
 
 for (const file of commandFiles) {
-  const command = require(path.join(commandsPath, file));
-  if (command.data && command.execute) {
-    client.commands.set(command.data.name, command);
-    console.log(`Loaded command: /${command.data.name}`);
+  try {
+    const command = require(path.join(commandsPath, file));
+    if (command.data && command.execute) {
+      client.commands.set(command.data.name, command);
+      console.log(`Loaded command: /${command.data.name}`);
+    }
+  } catch (err) {
+    console.error(`Failed to load command ${file}:`, err.message);
   }
 }
 
