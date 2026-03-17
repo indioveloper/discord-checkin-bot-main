@@ -1,4 +1,9 @@
-const { createCanvas } = require('@napi-rs/canvas');
+let createCanvas;
+try {
+  createCanvas = require('@napi-rs/canvas').createCanvas;
+} catch (e) {
+  console.error('[renderTracker] Failed to load @napi-rs/canvas:', e.message);
+}
 const { DateTime } = require('luxon');
 
 // ── Colour palette (one slot per member, assigned in registration order) ──
@@ -94,6 +99,7 @@ function diamond(ctx, cx, cy, size, bgColor) {
  * @returns {Buffer}  PNG image buffer
  */
 function renderTracker({ activeUsers = [], allMembers = [], timezone = 'UTC', title = 'Dev Tracker' }) {
+  if (!createCanvas) throw new Error('@napi-rs/canvas no está disponible en este entorno');
   const W = 1280, H = 720;
   const canvas = createCanvas(W, H);
   const ctx = canvas.getContext('2d');
