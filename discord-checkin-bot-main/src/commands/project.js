@@ -19,25 +19,25 @@ module.exports = {
       });
     }
 
-    // Gather active projects from other users (exclude own current project)
+    // Gather all active projects
     const allUsers = getUsers();
-    const otherProjects = [...new Set(
+    const activeProjects = [...new Set(
       Object.values(allUsers)
-        .filter(u => !isExpired(u.until) && u.userId !== interaction.user.id)
+        .filter(u => !isExpired(u.until))
         .map(u => u.project)
         .filter(Boolean),
     )];
 
-    if (otherProjects.length === 0) {
-      // No other active projects → jump straight to text modal
+    if (activeProjects.length === 0) {
+      // No active projects → jump straight to text modal
       return showProjectModal(interaction, user.project);
     }
 
     // Build project-selection buttons
     const rows = [];
-    for (let start = 0; start < Math.min(otherProjects.length, 8); start += 4) {
+    for (let start = 0; start < Math.min(activeProjects.length, 8); start += 4) {
       const row = new ActionRowBuilder();
-      otherProjects.slice(start, start + 4).forEach((proj, i) => {
+      activeProjects.slice(start, start + 4).forEach((proj, i) => {
         const label = proj.length > 80 ? proj.slice(0, 77) + '…' : proj;
         row.addComponents(
           new ButtonBuilder()
@@ -71,7 +71,7 @@ module.exports = {
     const allUsers = getUsers();
     const projects = [...new Set(
       Object.values(allUsers)
-        .filter(u => !isExpired(u.until) && u.userId !== interaction.user.id)
+        .filter(u => !isExpired(u.until))
         .map(u => u.project)
         .filter(Boolean),
     )];

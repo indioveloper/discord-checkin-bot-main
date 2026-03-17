@@ -5,7 +5,7 @@ const { renderTracker } = require('../utils/renderTracker');
 
 module.exports = {
   data: new SlashCommandBuilder()
-    .setName('tracker')
+    .setName('team')
     .setDescription('Muestra el estado del equipo en un gráfico visual'),
 
   async execute(interaction) {
