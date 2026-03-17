@@ -1,4 +1,5 @@
-const loginCommand = require('../commands/login');
+const loginCommand   = require('../commands/login');
+const projectCommand = require('../commands/project');
 
 /**
  * Central router for all Discord interactions.
@@ -22,6 +23,10 @@ async function interactionHandler(interaction, client) {
         await loginCommand.handleProjectButton(interaction);
       } else if (interaction.customId.startsWith('login_newproject_')) {
         await loginCommand.handleNewProjectButton(interaction);
+      } else if (interaction.customId.startsWith('proj_pick_')) {
+        await projectCommand.handlePickButton(interaction);
+      } else if (interaction.customId === 'proj_newproj') {
+        await projectCommand.handleNewButton(interaction);
       }
       return;
     }
@@ -30,6 +35,8 @@ async function interactionHandler(interaction, client) {
     if (interaction.isModalSubmit()) {
       if (interaction.customId.startsWith('login_modal_')) {
         await loginCommand.handleModalSubmit(interaction);
+      } else if (interaction.customId === 'proj_modal') {
+        await projectCommand.handleModalSubmit(interaction);
       }
       return;
     }

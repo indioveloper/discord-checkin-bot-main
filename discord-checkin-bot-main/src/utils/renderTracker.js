@@ -6,21 +6,23 @@ try {
 }
 const { DateTime } = require('luxon');
 
-// ── Colour palette — fixed 9 slots matching the team roster ─────────────────
-// 0 Owel   → yellow   4 Kappy  → blue
-// 1 Nerwi  → yellow   5 Bash   → green
-// 2 Tata   → blue     6 Numpi  → purple
-// 3 Thot   → blue     7 Bones  → purple   8 Raynor → brown
+// ── Colour palette — fixed 10 slots matching the team roster ────────────────
+// 0 Owel    → yellow   5 Kappy   → blue
+// 1 Nerwi   → yellow   6 Bash    → green
+// 2 Bicarius→ red      7 Numpi   → purple
+// 3 Tata    → blue     8 Bones   → purple
+// 4 Thot    → blue     9 Raynor  → brown
 const PALETTE = [
   { bg: '#F9E49A', text: '#5A4000' }, // 0 yellow  (Owel)
   { bg: '#F9E49A', text: '#5A4000' }, // 1 yellow  (Nerwi)
-  { bg: '#A8CCF8', text: '#1A3A8A' }, // 2 blue    (Tata)
-  { bg: '#A8CCF8', text: '#1A3A8A' }, // 3 blue    (Thot)
-  { bg: '#A8CCF8', text: '#1A3A8A' }, // 4 blue    (Kappy)
-  { bg: '#B8EAA8', text: '#1A5A10' }, // 5 green   (Bash)
-  { bg: '#C8B8EC', text: '#3A1A8A' }, // 6 purple  (Numpi)
-  { bg: '#C8B8EC', text: '#3A1A8A' }, // 7 purple  (Bones)
-  { bg: '#D4B896', text: '#5A3010' }, // 8 brown   (Raynor)
+  { bg: '#F8A8A8', text: '#8B1010' }, // 2 red     (Bicarius)
+  { bg: '#A8CCF8', text: '#1A3A8A' }, // 3 blue    (Tata)
+  { bg: '#A8CCF8', text: '#1A3A8A' }, // 4 blue    (Thot)
+  { bg: '#A8CCF8', text: '#1A3A8A' }, // 5 blue    (Kappy)
+  { bg: '#B8EAA8', text: '#1A5A10' }, // 6 green   (Bash)
+  { bg: '#C8B8EC', text: '#3A1A8A' }, // 7 purple  (Numpi)
+  { bg: '#C8B8EC', text: '#3A1A8A' }, // 8 purple  (Bones)
+  { bg: '#D4B896', text: '#5A3010' }, // 9 brown   (Raynor)
 ];
 
 function col(idx) {
@@ -158,14 +160,29 @@ function renderTracker({ activeUsers = [], rosterMembers = [], timezone = 'UTC',
   // ── Stats box ──
   const activeCt = activeUsers.length;
   const totalCt  = Math.max(rosterMembers.length, activeCt);
+  const nowMoment   = DateTime.now().setZone(timezone);
+  const timelineEnd = startH.plus({ hours: N_HOURS });
 
-  let peakCt = 0, peakLabel = '—';
-  tlHours.forEach(h => {
-    const c = activeUsers.filter(u =>
-      DateTime.fromISO(u.until, { zone: 'utc' }).setZone(timezone) > h
-    ).length;
-    if (c > peakCt) { peakCt = c; peakLabel = h.toFormat('HH') + 'h'; }
-  });
+  // "Definite" users: those whose until falls within the timeline (not ¿?)
+  const definiteUsers = activeUsers.filter(u =>
+    DateTime.fromISO(u.until, { zone: 'utc' }).setZone(timezone) < timelineEnd
+  );
+
+  // Overlap duration = time until the first definite user leaves
+  let overlapStr = '';
+  if (definiteUsers.length > 0) {
+    const minUntilDT = definiteUsers.reduce((min, u) => {
+      const t = DateTime.fromISO(u.until, { zone: 'utc' }).setZone(timezone);
+      return t < min ? t : min;
+    }, DateTime.fromISO(definiteUsers[0].until, { zone: 'utc' }).setZone(timezone));
+
+    const diffMins = Math.max(0, Math.floor(minUntilDT.diff(nowMoment, 'minutes').minutes));
+    const h = Math.floor(diffMins / 60);
+    const m = diffMins % 60;
+    if (h > 0 && m > 0) overlapStr = ` (${h}h ${m}m)`;
+    else if (h > 0)      overlapStr = ` (${h}h)`;
+    else if (m > 0)      overlapStr = ` (${m}m)`;
+  }
 
   const STATS_W = 288;
   const STATS_X = W - PAD - STATS_W;
@@ -176,9 +193,16 @@ function renderTracker({ activeUsers = [], rosterMembers = [], timezone = 'UTC',
   ctx.textBaseline = 'top';
   ctx.fillText(`Activos: ${activeCt}/${totalCt}`, STATS_X + STATS_W / 2, TIT_Y + 9);
   ctx.fillText(
-    peakCt > 0 ? `Simultáneos: ${peakCt} (~${peakLabel})` : 'Sin actividad',
+    activeCt > 0 ? `Simultáneos: ${activeCt}${overlapStr}` : 'Sin actividad',
     STATS_X + STATS_W / 2, TIT_Y + 28
   );
+
+  // ── Timezone tooltip (plain text, no box) ──
+  ctx.fillStyle = '#999';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('· Se muestra tu hora local', PAD + 404, TIT_Y + TIT_H / 2);
 
   // ── Section headers ──
   // Offline

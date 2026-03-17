@@ -32,7 +32,8 @@ module.exports = {
       return { ...u, colorIndex: match ? match.colorIndex : 0 };
     });
 
-    const title  = `${interaction.guild?.name ?? 'Dev'} Tracker`;
+    const rawName = interaction.guild?.name ?? 'Dev';
+    const title   = `${rawName.replace(/development\s+team/gi, 'Dev')} Tracker`;
     const buffer = renderTracker({ activeUsers: activeWithColor, rosterMembers, timezone, title });
 
     const attachment = new AttachmentBuilder(buffer, { name: 'tracker.png' });
