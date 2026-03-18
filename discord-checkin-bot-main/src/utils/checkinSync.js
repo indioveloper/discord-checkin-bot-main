@@ -23,12 +23,14 @@ function getMemberId(userId, displayName) {
 
 /**
  * Upsert de sesión activa en team_checkins.
- * @param {string} userId     - Discord user ID
- * @param {string} displayName - Nombre visible en Discord
- * @param {string} until      - UTC ISO timestamp o 'indefinidamente'
- * @param {string} project    - Nombre del proyecto
+ * @param {string}      userId      - Discord user ID
+ * @param {string}      displayName - Nombre visible en Discord
+ * @param {string}      until       - UTC ISO timestamp o 'indefinidamente'
+ * @param {string}      project     - Nombre del proyecto
+ * @param {string|null} loginTime   - UTC ISO del momento de login. Si es null no se sobreescribe
+ *                                    (útil al cambiar de proyecto sin reiniciar sesión).
  */
-async function syncLogin(userId, displayName, until, project) {
+async function syncLogin(userId, displayName, until, project, loginTime = null) {
   if (!supabase) return;
 
   const memberId = getMemberId(userId, displayName);
@@ -37,12 +39,12 @@ async function syncLogin(userId, displayName, until, project) {
     return;
   }
 
+  const payload = { member_id: memberId, until, project, updated_at: new Date().toISOString() };
+  if (loginTime) payload.login_time = loginTime;
+
   const { error } = await supabase
     .from('team_checkins')
-    .upsert(
-      { member_id: memberId, until, project, updated_at: new Date().toISOString() },
-      { onConflict: 'member_id' }
-    );
+    .upsert(payload, { onConflict: 'member_id' });
 
   if (error) console.error(`[checkinSync] Error en login sync (${memberId}):`, error.message);
 }

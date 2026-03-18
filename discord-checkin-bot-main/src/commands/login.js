@@ -176,7 +176,7 @@ async function saveSession(interaction, utcIso, project, opts = {}) {
     channelId: interaction.channelId,
   });
   registerMember(interaction.user.id, displayName);
-  syncLogin(interaction.user.id, displayName, utcIso, project).catch(err =>
+  syncLogin(interaction.user.id, displayName, utcIso, project, new Date().toISOString()).catch(err =>
     console.error('[checkinSync] login error:', err.message)
   );
 
