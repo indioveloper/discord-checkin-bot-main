@@ -1,5 +1,6 @@
 const { getUsers, removeUser } = require('../utils/storage');
 const { isExpired } = require('../utils/timeUtils');
+const { syncLogout } = require('../utils/checkinSync');
 
 const CHECK_INTERVAL_MS = 60 * 1000; // every 60 seconds
 
@@ -17,6 +18,9 @@ function startExpiryChecker(client) {
 
       // Remove from active list first to avoid duplicate notifications
       removeUser(userId);
+      syncLogout(userId, userData.username).catch(err =>
+        console.error('[checkinSync] expiry sync error:', err.message)
+      );
 
       // Post notification in the channel where the user logged in
       try {

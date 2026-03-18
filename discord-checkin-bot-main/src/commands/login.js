@@ -4,6 +4,7 @@ const {
 } = require('discord.js');
 const { getUpcomingHours, hourLabel, formatInZone, isExpired } = require('../utils/timeUtils');
 const { getTimezone, setUser, registerMember, getUsers } = require('../utils/storage');
+const { syncLogin } = require('../utils/checkinSync');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -175,6 +176,9 @@ async function saveSession(interaction, utcIso, project, opts = {}) {
     channelId: interaction.channelId,
   });
   registerMember(interaction.user.id, displayName);
+  syncLogin(interaction.user.id, displayName, utcIso, project).catch(err =>
+    console.error('[checkinSync] login error:', err.message)
+  );
 
   const unixTs = Math.floor(new Date(utcIso).getTime() / 1000);
   const msg = `✅ **${displayName}** está en línea hasta las <t:${unixTs}:t> trabajando en **"${project}"**`;

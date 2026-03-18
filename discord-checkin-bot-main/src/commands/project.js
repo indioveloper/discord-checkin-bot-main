@@ -4,6 +4,7 @@ const {
 } = require('discord.js');
 const { getUser, setUser, getUsers } = require('../utils/storage');
 const { isExpired } = require('../utils/timeUtils');
+const { syncLogin } = require('../utils/checkinSync');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -131,6 +132,9 @@ async function applyProjectChange(interaction, newProject, opts = {}) {
 
   const oldProject = user.project;
   setUser(interaction.user.id, { ...user, project: newProject });
+  syncLogin(interaction.user.id, displayName, user.until, newProject).catch(err =>
+    console.error('[checkinSync] project sync error:', err.message)
+  );
 
   const announcement = `🔄 **${displayName}** ha cambiado de proyecto: ~~${oldProject}~~ → **${newProject}**`;
 

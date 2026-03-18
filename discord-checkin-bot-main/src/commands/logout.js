@@ -1,5 +1,6 @@
 const { SlashCommandBuilder } = require('discord.js');
 const { getUser, removeUser } = require('../utils/storage');
+const { syncLogout } = require('../utils/checkinSync');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -18,6 +19,9 @@ module.exports = {
     }
 
     removeUser(interaction.user.id);
+    syncLogout(interaction.user.id, displayName).catch(err =>
+      console.error('[checkinSync] logout error:', err.message)
+    );
 
     await interaction.reply({
       content: `👋 **${displayName}** ha salido del equipo. ¡Hasta la próxima!`,
