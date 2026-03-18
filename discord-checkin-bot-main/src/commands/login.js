@@ -2,6 +2,7 @@ const {
   SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle,
   ModalBuilder, TextInputBuilder, TextInputStyle, MessageFlags,
 } = require('discord.js');
+const { DateTime } = require('luxon');
 const { getUpcomingHours, hourLabel, formatInZone, isExpired } = require('../utils/timeUtils');
 const { getTimezone, setUser, registerMember, getUsers } = require('../utils/storage');
 const { syncLogin } = require('../utils/checkinSync');
@@ -17,6 +18,7 @@ module.exports = {
 
     const row1 = new ActionRowBuilder();
     const row2 = new ActionRowBuilder();
+    const row3 = new ActionRowBuilder();
 
     hours.slice(0, 4).forEach(dt => {
       row1.addComponents(
@@ -36,25 +38,29 @@ module.exports = {
       );
     });
 
+    row3.addComponents(
+      new ButtonBuilder()
+        .setCustomId('login_exacttime')
+        .setLabel('⏰ Hora exacta')
+        .setStyle(ButtonStyle.Secondary)
+    );
+
     await interaction.reply({
       content: `👋 Hola **${interaction.member?.displayName || interaction.user.username}**!\n\n**¿Hasta qué hora vas a estar por aquí?**`,
-      components: [row1, row2],
+      components: [row1, row2, row3],
       flags: MessageFlags.Ephemeral,
     });
   },
 
-  // Called when user picks an hour
+  // Called when user picks an hour slot button
   async handleTimeButton(interaction) {
     const selectedUtcIso = interaction.customId.replace('login_time_', '');
-
-    // Gather active projects from current sessions
     const activeProjects = getActiveProjects();
 
     if (activeProjects.length === 0) {
       return showProjectModal(interaction, selectedUtcIso);
     }
 
-    // Show project-selection buttons
     const timezone = getTimezone(interaction.user.id);
     const localTime = formatInZone(selectedUtcIso, timezone);
     const rows = buildProjectRows(activeProjects, selectedUtcIso);
@@ -65,9 +71,43 @@ module.exports = {
     });
   },
 
+  // Called when user clicks "⏰ Hora exacta"
+  async handleExactTimeButton(interaction) {
+    const activeProjects = getActiveProjects();
+    const projectPlaceholder = activeProjects.length > 0
+      ? `Activos: ${activeProjects.slice(0, 3).join(', ')}`
+      : 'Ej: API de pagos, Dashboard admin…';
+
+    const modal = new ModalBuilder()
+      .setCustomId('login_exacttime_modal')
+      .setTitle('Check-in con hora exacta');
+
+    modal.addComponents(
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('exact_time')
+          .setLabel('Hora de salida (HH:MM)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('13:45')
+          .setRequired(true)
+          .setMaxLength(5),
+      ),
+      new ActionRowBuilder().addComponents(
+        new TextInputBuilder()
+          .setCustomId('project_name')
+          .setLabel('Proyecto')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder(projectPlaceholder)
+          .setRequired(true)
+          .setMaxLength(100),
+      ),
+    );
+
+    return interaction.showModal(modal);
+  },
+
   // Called when user picks an existing project button
   async handleProjectButton(interaction) {
-    // customId: login_proj_<utcIso>_<idx>
     const withoutPrefix = interaction.customId.slice('login_proj_'.length);
     const lastUs = withoutPrefix.lastIndexOf('_');
     const utcIso = withoutPrefix.slice(0, lastUs);
@@ -93,10 +133,45 @@ module.exports = {
     return showProjectModal(interaction, utcIso);
   },
 
-  // Called when the project-name modal is submitted
+  // Called when the project-name modal is submitted (from hour slot flow)
   async handleModalSubmit(interaction) {
     const utcIso  = interaction.customId.replace('login_modal_', '');
     const project = interaction.fields.getTextInputValue('project_name').trim();
+    await saveSession(interaction, utcIso, project, { fromModal: true });
+  },
+
+  // Called when the exact-time modal is submitted
+  async handleExactTimeModalSubmit(interaction) {
+    const timeStr = interaction.fields.getTextInputValue('exact_time').trim();
+    const project = interaction.fields.getTextInputValue('project_name').trim();
+
+    const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) {
+      return interaction.reply({
+        content: '⚠️ Formato de hora inválido. Usa HH:MM (ej: `13:45`).',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    const h = parseInt(match[1], 10);
+    const m = parseInt(match[2], 10);
+
+    if (h > 23 || m > 59) {
+      return interaction.reply({
+        content: '⚠️ Hora inválida. Escribe una hora entre 00:00 y 23:59.',
+        flags: MessageFlags.Ephemeral,
+      });
+    }
+
+    const tz = getTimezone(interaction.user.id);
+    let dt = DateTime.now().setZone(tz).set({ hour: h, minute: m, second: 0, millisecond: 0 });
+
+    // Si la hora ya pasó hace más de 2 minutos, asumir que es mañana
+    if (dt.toMillis() < Date.now() - 2 * 60_000) {
+      dt = dt.plus({ days: 1 });
+    }
+
+    const utcIso = dt.toUTC().toISO();
     await saveSession(interaction, utcIso, project, { fromModal: true });
   },
 };
@@ -116,7 +191,6 @@ function getActiveProjects() {
 function buildProjectRows(projects, utcIso) {
   const rows = [];
 
-  // Up to 4 existing-project buttons per row (max 2 rows = 8, cap at 8)
   const capped = projects.slice(0, 8);
   for (let start = 0; start < capped.length; start += 4) {
     const row = new ActionRowBuilder();
@@ -132,7 +206,6 @@ function buildProjectRows(projects, utcIso) {
     rows.push(row);
   }
 
-  // "New project" button on its own row
   rows.push(
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -186,7 +259,6 @@ async function saveSession(interaction, utcIso, project, opts = {}) {
   if (opts.fromModal) {
     await interaction.reply({ content: msg });
   } else {
-    // Button flow: update ephemeral message then post public announcement
     await interaction.update({ content: '✅', components: [] });
     await interaction.followUp({ content: msg });
   }

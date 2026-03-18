@@ -19,6 +19,8 @@ async function interactionHandler(interaction, client) {
     if (interaction.isButton()) {
       if (interaction.customId.startsWith('login_time_')) {
         await loginCommand.handleTimeButton(interaction);
+      } else if (interaction.customId === 'login_exacttime') {
+        await loginCommand.handleExactTimeButton(interaction);
       } else if (interaction.customId.startsWith('login_proj_')) {
         await loginCommand.handleProjectButton(interaction);
       } else if (interaction.customId.startsWith('login_newproject_')) {
@@ -35,6 +37,8 @@ async function interactionHandler(interaction, client) {
     if (interaction.isModalSubmit()) {
       if (interaction.customId.startsWith('login_modal_')) {
         await loginCommand.handleModalSubmit(interaction);
+      } else if (interaction.customId === 'login_exacttime_modal') {
+        await loginCommand.handleExactTimeModalSubmit(interaction);
       } else if (interaction.customId === 'proj_modal') {
         await projectCommand.handleModalSubmit(interaction);
       }
