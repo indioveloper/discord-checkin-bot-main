@@ -4,7 +4,7 @@ const {
 } = require('discord.js');
 const { DateTime } = require('luxon');
 const { getUpcomingHours, hourLabel, formatInZone, isExpired } = require('../utils/timeUtils');
-const { getTimezone, setUser, registerMember, getUsers } = require('../utils/storage');
+const { getTimezone, setUser, registerMember, getUsers, getRoster } = require('../utils/storage');
 const { syncLogin } = require('../utils/checkinSync');
 
 module.exports = {
@@ -253,8 +253,45 @@ async function saveSession(interaction, utcIso, project, opts = {}) {
     console.error('[checkinSync] login error:', err.message)
   );
 
-  const unixTs = Math.floor(new Date(utcIso).getTime() / 1000);
-  const msg = `✅ **${displayName}** está en línea hasta las <t:${unixTs}:t> trabajando en **"${project}"**`;
+  const unixTs   = Math.floor(new Date(utcIso).getTime() / 1000);
+  const now      = Date.now();
+  const allUsers = getUsers();
+  const active   = Object.values(allUsers).filter(u => !isExpired(u.until));
+  const others   = active.filter(u => u.username !== displayName);
+  const roster   = getRoster();
+
+  // Línea principal
+  let msg = `✅ **${displayName}** está en línea hasta las <t:${unixTs}:t> trabajando en **"${project}"**`;
+
+  // Lista de otros conectados
+  if (others.length > 0) {
+    msg += '\n\n👥 **También conectados:**';
+    for (const u of others) {
+      const ts    = u.until !== 'indefinidamente' ? Math.floor(new Date(u.until).getTime() / 1000) : null;
+      const until = ts ? `hasta las <t:${ts}:t>` : 'indefinidamente';
+      const proj  = u.project ? ` · ${u.project}` : '';
+      msg += `\n• **${u.username}** — ${until}${proj}`;
+    }
+  }
+
+  // Resumen simultáneos
+  const definiteTimes = active
+    .filter(u => u.until !== 'indefinidamente')
+    .map(u => new Date(u.until).getTime())
+    .filter(t => t > now);
+
+  const nextDep = definiteTimes.length > 0 ? Math.min(...definiteTimes) : null;
+
+  if (nextDep) {
+    const nextTs    = Math.floor(nextDep / 1000);
+    const remainMin = Math.round((nextDep - now) / 60_000);
+    const remainStr = remainMin < 60
+      ? `${remainMin} min`
+      : `${Math.floor(remainMin / 60)}h${remainMin % 60 > 0 ? ` ${remainMin % 60}min` : ''}`;
+    msg += `\n\n📊 **${active.length} de ${roster.length}** miembros activos · simultáneos hasta las <t:${nextTs}:t> (en ${remainStr})`;
+  } else {
+    msg += `\n\n📊 **${active.length} de ${roster.length}** miembros activos`;
+  }
 
   if (opts.fromModal) {
     await interaction.reply({ content: msg });
