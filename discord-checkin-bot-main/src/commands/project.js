@@ -112,7 +112,7 @@ function showProjectModal(interaction, currentProject) {
         .setCustomId('project_name')
         .setLabel('Nombre del nuevo proyecto')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder(currentProject || 'Ej: API de pagos…')
+        .setPlaceholder(currentProject || '')
         .setRequired(true)
         .setMaxLength(100),
     ),

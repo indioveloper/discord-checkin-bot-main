@@ -46,8 +46,14 @@ rest.put(
   .then(data => console.log(`✅ ${data.length} slash commands registrados`))
   .catch(err => console.error('Error registrando commands:', err.message));
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`✅ Bot online como ${client.user.tag}`);
+  try {
+    await client.user.setAvatar(path.join(__dirname, '../icono.png'));
+    console.log('✅ Avatar actualizado');
+  } catch (err) {
+    console.error('Error actualizando avatar:', err.message);
+  }
   startExpiryChecker(client);
 });
 

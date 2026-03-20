@@ -76,7 +76,7 @@ module.exports = {
     const activeProjects = getActiveProjects();
     const projectPlaceholder = activeProjects.length > 0
       ? `Activos: ${activeProjects.slice(0, 3).join(', ')}`
-      : 'Ej: API de pagos, Dashboard admin…';
+      : '';
 
     const modal = new ModalBuilder()
       .setCustomId('login_exacttime_modal')
@@ -117,11 +117,7 @@ module.exports = {
     const project = activeProjects[idx];
 
     if (!project) {
-      await interaction.update({
-        content: '⚠️ Ese proyecto ya no está activo. Usa `/login` de nuevo.',
-        components: [],
-      });
-      return;
+      return showProjectModal(interaction, utcIso);
     }
 
     await saveSession(interaction, utcIso, project);
@@ -229,7 +225,7 @@ function showProjectModal(interaction, utcIso) {
         .setCustomId('project_name')
         .setLabel('Nombre del proyecto')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('Ej: API de pagos, Dashboard admin…')
+        .setPlaceholder('')
         .setRequired(true)
         .setMaxLength(100),
     ),
