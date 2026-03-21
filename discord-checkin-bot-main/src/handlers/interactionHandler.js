@@ -21,6 +21,8 @@ async function interactionHandler(interaction, client) {
         await loginCommand.handleTimeButton(interaction);
       } else if (interaction.customId === 'login_exacttime') {
         await loginCommand.handleExactTimeButton(interaction);
+      } else if (interaction.customId === 'login_indefinite') {
+        await loginCommand.handleIndefiniteButton(interaction);
       } else if (interaction.customId.startsWith('login_proj_')) {
         await loginCommand.handleProjectButton(interaction);
       } else if (interaction.customId.startsWith('login_newproject_')) {

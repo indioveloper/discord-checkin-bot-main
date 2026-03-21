@@ -42,6 +42,10 @@ module.exports = {
       new ButtonBuilder()
         .setCustomId('login_exacttime')
         .setLabel('⏰ Hora exacta')
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId('login_indefinite')
+        .setLabel('♾️ Indefinidamente')
         .setStyle(ButtonStyle.Secondary)
     );
 
@@ -67,6 +71,22 @@ module.exports = {
 
     await interaction.update({
       content: `⏱️ Hasta las **${localTime}** — ¿a qué proyecto te unes?`,
+      components: rows,
+    });
+  },
+
+  // Called when user clicks "♾️ Indefinidamente"
+  async handleIndefiniteButton(interaction) {
+    const activeProjects = getActiveProjects();
+
+    if (activeProjects.length === 0) {
+      return showProjectModal(interaction, 'indefinidamente');
+    }
+
+    const rows = buildProjectRows(activeProjects, 'indefinidamente');
+
+    await interaction.update({
+      content: `♾️ Sin límite de tiempo — ¿a qué proyecto te unes?`,
       components: rows,
     });
   },
@@ -249,7 +269,8 @@ async function saveSession(interaction, utcIso, project, opts = {}) {
     console.error('[checkinSync] login error:', err.message)
   );
 
-  const unixTs   = Math.floor(new Date(utcIso).getTime() / 1000);
+  const indefinite = utcIso === 'indefinidamente';
+  const unixTs   = indefinite ? null : Math.floor(new Date(utcIso).getTime() / 1000);
   const now      = Date.now();
   const allUsers = getUsers();
   const active   = Object.values(allUsers).filter(u => !isExpired(u.until));
@@ -257,7 +278,9 @@ async function saveSession(interaction, utcIso, project, opts = {}) {
   const roster   = getRoster();
 
   // Línea principal
-  let msg = `✅ **${displayName}** está en línea hasta las <t:${unixTs}:t> trabajando en **"${project}"**`;
+  let msg = indefinite
+    ? `✅ **${displayName}** está en línea indefinidamente trabajando en **"${project}"**`
+    : `✅ **${displayName}** está en línea hasta las <t:${unixTs}:t> trabajando en **"${project}"**`;
 
   // Lista de otros conectados
   if (others.length > 0) {

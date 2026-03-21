@@ -33,6 +33,7 @@ function formatWithZoneLabel(isoString, timezone) {
  * Returns true if the given UTC ISO string is in the past.
  */
 function isExpired(isoString) {
+  if (isoString === 'indefinidamente') return false;
   return DateTime.fromISO(isoString, { zone: 'utc' }) <= DateTime.utc();
 }
 
