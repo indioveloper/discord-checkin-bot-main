@@ -6,6 +6,7 @@ const { DateTime } = require('luxon');
 const { getUpcomingHours, hourLabel, formatInZone, isExpired } = require('../utils/timeUtils');
 const { getTimezone, setUser, registerMember, getUsers, getRoster } = require('../utils/storage');
 const { syncLogin } = require('../utils/checkinSync');
+const { getLinearProjects } = require('../utils/linearClient');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -59,43 +60,65 @@ module.exports = {
   // Called when user picks an hour slot button
   async handleTimeButton(interaction) {
     const selectedUtcIso = interaction.customId.replace('login_time_', '');
-    const activeProjects = getActiveProjects();
+    const sessionProjects = getSessionProjects();
+    const linearEnabled = !!process.env.LINEAR_API_KEY;
 
-    if (activeProjects.length === 0) {
+    // Fast path: sin Linear y sin sesiones → modal inmediato (sin defer)
+    if (!linearEnabled && sessionProjects.length === 0) {
       return showProjectModal(interaction, selectedUtcIso);
     }
 
-    const timezone = getTimezone(interaction.user.id);
-    const localTime = formatInZone(selectedUtcIso, timezone);
-    const rows = buildProjectRows(activeProjects, selectedUtcIso);
+    await interaction.deferUpdate();
+    const activeProjects = linearEnabled ? await getMergedProjects() : sessionProjects;
 
-    await interaction.update({
+    if (activeProjects.length === 0) {
+      return interaction.editReply({
+        content: `⏱️ Hasta las **${formatInZone(selectedUtcIso, getTimezone(interaction.user.id))}** — ¿a qué proyecto te unes?`,
+        components: [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(`login_newproject_${selectedUtcIso}`).setLabel('✏️ Nuevo proyecto').setStyle(ButtonStyle.Secondary),
+        )],
+      });
+    }
+
+    const localTime = formatInZone(selectedUtcIso, getTimezone(interaction.user.id));
+    await interaction.editReply({
       content: `⏱️ Hasta las **${localTime}** — ¿a qué proyecto te unes?`,
-      components: rows,
+      components: buildProjectRows(activeProjects, selectedUtcIso),
     });
   },
 
   // Called when user clicks "♾️ Indefinidamente"
   async handleIndefiniteButton(interaction) {
-    const activeProjects = getActiveProjects();
+    const sessionProjects = getSessionProjects();
+    const linearEnabled = !!process.env.LINEAR_API_KEY;
 
-    if (activeProjects.length === 0) {
+    if (!linearEnabled && sessionProjects.length === 0) {
       return showProjectModal(interaction, 'indefinidamente');
     }
 
-    const rows = buildProjectRows(activeProjects, 'indefinidamente');
+    await interaction.deferUpdate();
+    const activeProjects = linearEnabled ? await getMergedProjects() : sessionProjects;
 
-    await interaction.update({
+    if (activeProjects.length === 0) {
+      return interaction.editReply({
+        content: `♾️ Sin límite de tiempo — ¿a qué proyecto te unes?`,
+        components: [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId('login_newproject_indefinidamente').setLabel('✏️ Nuevo proyecto').setStyle(ButtonStyle.Secondary),
+        )],
+      });
+    }
+
+    await interaction.editReply({
       content: `♾️ Sin límite de tiempo — ¿a qué proyecto te unes?`,
-      components: rows,
+      components: buildProjectRows(activeProjects, 'indefinidamente'),
     });
   },
 
   // Called when user clicks "⏰ Hora exacta"
   async handleExactTimeButton(interaction) {
-    const activeProjects = getActiveProjects();
-    const projectPlaceholder = activeProjects.length > 0
-      ? `Activos: ${activeProjects.slice(0, 3).join(', ')}`
+    const sessionProjects = getSessionProjects();
+    const projectPlaceholder = sessionProjects.length > 0
+      ? `Activos: ${sessionProjects.slice(0, 3).join(', ')}`
       : '';
 
     const modal = new ModalBuilder()
@@ -128,19 +151,29 @@ module.exports = {
 
   // Called when user picks an existing project button
   async handleProjectButton(interaction) {
+    await interaction.deferUpdate();
+
     const withoutPrefix = interaction.customId.slice('login_proj_'.length);
     const lastUs = withoutPrefix.lastIndexOf('_');
     const utcIso = withoutPrefix.slice(0, lastUs);
     const idx    = parseInt(withoutPrefix.slice(lastUs + 1), 10);
 
-    const activeProjects = getActiveProjects();
-    const project = activeProjects[idx];
+    const activeProjects = await getMergedProjects();
+    const projectRaw = activeProjects[idx];
 
-    if (!project) {
-      return showProjectModal(interaction, utcIso);
+    if (!projectRaw) {
+      // No se puede abrir modal después de deferUpdate
+      return interaction.editReply({
+        content: '¿A qué proyecto te unes?',
+        components: [new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(`login_newproject_${utcIso}`).setLabel('✏️ Nuevo proyecto').setStyle(ButtonStyle.Secondary),
+        )],
+      });
     }
 
-    await saveSession(interaction, utcIso, project);
+    // Quitar prefijo 📋 (proyectos de Linear) antes de guardar
+    const project = projectRaw.startsWith('📋 ') ? projectRaw.slice(3) : projectRaw;
+    await saveSession(interaction, utcIso, project, { deferred: true });
   },
 
   // Called when user clicks "✏️ Nuevo proyecto"
@@ -194,7 +227,8 @@ module.exports = {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function getActiveProjects() {
+// Síncrono: solo proyectos de sesiones activas en memoria
+function getSessionProjects() {
   const users = getUsers();
   return [...new Set(
     Object.values(users)
@@ -202,6 +236,17 @@ function getActiveProjects() {
       .map(u => u.project)
       .filter(Boolean),
   )];
+}
+
+// Asíncrono: sesiones activas + proyectos de Linear (prioridad urgente/alta)
+async function getMergedProjects() {
+  const sessionProjects = getSessionProjects();
+  const linearProjects = await getLinearProjects();
+  const sessionSet = new Set(sessionProjects);
+  const newFromLinear = linearProjects
+    .filter(p => !sessionSet.has(p))
+    .map(p => `📋 ${p}`);
+  return [...sessionProjects, ...newFromLinear];
 }
 
 function buildProjectRows(projects, utcIso) {
@@ -314,6 +359,9 @@ async function saveSession(interaction, utcIso, project, opts = {}) {
 
   if (opts.fromModal) {
     await interaction.reply({ content: msg });
+  } else if (opts.deferred) {
+    await interaction.editReply({ content: '✅', components: [] });
+    await interaction.followUp({ content: msg });
   } else {
     await interaction.update({ content: '✅', components: [] });
     await interaction.followUp({ content: msg });

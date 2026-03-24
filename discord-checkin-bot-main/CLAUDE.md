@@ -62,6 +62,15 @@ data/
 3. Hay siempre un botón "✏️ Nuevo proyecto" para introducir uno distinto.
 4. Al confirmar, la sesión se guarda en `data/users.json` y se anuncia públicamente.
 
+### Opción "♾️ Indefinidamente"
+
+`/login` incluye un botón extra en la fila de opciones de hora: **"♾️ Indefinidamente"** (`login_indefinite`). Al pulsarlo:
+- Salta la selección de hora y va directo a la selección de proyecto (igual que al elegir una hora concreta).
+- Guarda `until: 'indefinidamente'` en la sesión.
+- El mensaje público dice _"está en línea indefinidamente"_ en lugar de un timestamp.
+- `isExpired('indefinidamente')` devuelve `false` — la sesión nunca expira automáticamente; hay que hacer `/logout` manual.
+- Implementado en: `login.js` (`handleIndefiniteButton`), `interactionHandler.js` (ruta `login_indefinite`), `timeUtils.js` (guard en `isExpired`).
+
 ## Roster del equipo
 
 `data/roster.json` define los 10 miembros fijos con su `colorIndex` (0–9). El orden determina su posición en el panel Offline del tracker.
