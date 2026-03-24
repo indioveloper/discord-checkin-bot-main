@@ -11,9 +11,8 @@ const QUERY = `
     issues(filter: {
       priority: { in: [1, 2] }
       state: { type: { nin: ["completed", "cancelled"] } }
-      project: { null: false }
     }) {
-      nodes { project { name } }
+      nodes { title }
     }
   }
 `;
@@ -48,7 +47,7 @@ async function getLinearProjects() {
     }
     const nodes = json?.data?.issues?.nodes ?? [];
     return [...new Set(
-      nodes.map(n => n?.project?.name).filter(Boolean).map(n => n.trim()),
+      nodes.map(n => n?.title).filter(Boolean).map(n => n.trim()),
     )];
   } catch (err) {
     console.warn('[linear] Error al obtener proyectos:', err.message);
